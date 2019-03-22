@@ -1,0 +1,1296 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+#I love Premier League and I actively watch PL matches. My favorite are two clubs from Manchester i.e Manchester United and City. Even they seem to be rivals, I would love to support both esp after Mancini's era at City. I started watching football in 2015, so I missed out SAF's Period at United.
+
+#Inspired from Peter Charambira
+
+#Analyst: Rohan Shetty
+##PREMIER LEAGUE
+#UNIT1:
+
+#Load all the required libraries
+library("ggplot2") # GG stands for Grammar of Graphics. So this package is for Visualizing graphics
+library("dplyr") # DPLYR package is useful for Data manipulation. It consists a set of verbs that helps one in solving.
+library("RColorBrewer") #Name says Color Brewer. Basically it helps in adding color schemes to plots
+library("ggthemes") #adds extra geoms and themes to ggplot2.
+library("ggrepel") #prevents overlapping of text labels.
+library("gridExtra") #provides user level functions to work with grid graphics.
+library("reshape2") #helps in restructuring and aggregating data
+library("data.table") #helps in aggregation of large datasets 
+library("corrplot") #helps in displaying Correlation Matrix
+
+
+```
+
+```{r}
+
+```
+
+```{r}
+#UNIT 2: DATA PREPARATION
+
+#read both the files i.e stats and results
+
+Stats_Data<- read.csv("stats.csv")
+Results_Data<- read.csv("results.csv")
+
+head(Stats_Data)
+head(Results_Data)
+
+str(Stats_Data)
+str(Results_Data)
+
+summary(Stats_Data)
+summary(Results_Data)
+
+
+```
+
+```{r}
+#------------------#
+# Results Analysis #
+#------------------#
+
+#Season Breakdown
+
+head(Results_Data)
+
+Results_Data %>%
+  group_by(result, season) %>% count() %>% ggplot(aes(x= result, y=n)) +
+  geom_bar( stat = "identity", position = "dodge") +
+  facet_wrap(~season) + ggtitle("Results Analysis", subtitle = "Season-wise") + labs(x="Results", y= "Result Count", caption = "Result Count through the Seasons")
+
+
+#Insights gained:
+#1: Home wins count are more than away and draw ones. 
+#2: Also playing at Home has more advantage.
+#3: 2014-15 and 2015-16 seems to be tough ones. 
+#4: 2009-10 season proves my #1(Like to a large ext)
+
+#######
+#Goals#
+#######
+
+#Home Goals
+
+homeGoals<-Results_Data %>%
+  group_by(season) %>%
+  summarise(Total_HomeGoals = sum(home_goals)) %>%
+  ggplot(aes(x=season, y=Total_HomeGoals, fill =)) + geom_bar(stat = "identity", position = "dodge")  + labs(x="Season", y="Total Home Goals", caption = "Home Goals Analysis ")+ geom_text(aes(label =Total_HomeGoals ),vjust=-1, size = 3)+
+  theme(axis.text.x = element_text(size = 7)) + labs(title="HomeGoals")
+
+
+#Insights gained
+#1. In 2009-10 season, 645 home goals were scored. Its the highest among the tally. Home games dominant over Away games.
+#2. In 2009-09 season, least no of goals were scored i.e only 532.
+
+
+#Away Goals
+awayGoals<-Results_Data %>%
+  group_by(season) %>%
+  summarise(Total_AwayGoals = sum(away_goals)) %>% 
+  ggplot(aes(x= season, y= Total_AwayGoals)) + geom_bar(stat = "identity", position = "dodge") + geom_text(aes(label = Total_AwayGoals), vjust = -1, size = 2.5) + theme(axis.text.x  = element_text(size=7), axis.text.y = element_text(size=7)) + labs(caption="Away Goals Analysis") + theme(axis.line = element_line(color ="red")) + theme(axis.title = element_text(color = "green"))+ labs(title="AwayGoals")
+
+#Insights gained
+#1. 2012-13 had the highest no of away goals.And 2006-07 had the least
+
+grid.arrange(homeGoals,awayGoals,nrow=1)
+
+
+#Types of Draws
+
+scoring<- Results_Data %>% filter(home_goals > 0 & away_goals >0)%>%
+  group_by(season) %>% summarise(scorincount = n()) %>% 
+  ggplot(aes(x=season, y=scorincount)) + geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = scorincount), vjust = -1, size =3) + labs(title = "Count of Scoring Draws by season") + theme(axis.title= element_text(color = "Red")) + theme(axis.text.x = element_text(size=7), axis.text.y = element_text(size=7))
+
+scoring
+
+goalless<-Results_Data %>% filter(home_goals == 0 & away_goals == 0)%>%
+  group_by(season) %>% summarise(scorincount = n()) %>% 
+  ggplot(aes(x=season, y=scorincount)) + geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = scorincount), vjust = -1, size =3) + labs(title = "Count of Goalless Draws by season") + theme(axis.title= element_text(color = "Red")) + theme(axis.text.x = element_text(size=7), axis.text.y = element_text(size=7))
+
+goalless
+
+grid.arrange(scoring,goalless, nrow = 1)
+#helps in compacting two or more plots 
+
+
+#Insights gained 
+#1. Scoring Draws > Goalless Draws. Huge Difference
+
+
+
+```
+
+```{r}
+
+#Team Breakdown
+
+head(Results_Data)
+head(Stats_Data)
+
+#So here we're gonna analyse Home Wins of Each team in Premier League form 2006 season
+
+Home_Wins<- Results_Data%>% filter(result == "H") %>% group_by(home_team,result) %>% summarise(Home_Wins = n()) %>% arrange(desc(Home_Wins)) %>% ggplot(aes(x=home_team, y=Home_Wins, fill = Home_Wins)) + geom_bar(stat="identity", position="dodge") + geom_text(mapping= aes(label = Home_Wins), vjust = 0.25, hjust=0, size= 3) + theme(axis.title = element_text(size = 10, color = "black"))+ coord_flip() + labs(y="Home Wins Count", x = "Teams", caption="Home Team Breakdown", title = "Home Wins Analysis") + theme(axis.text.y = element_text(size=7.75)) 
+
+
+Home_Wins
+
+#Barplot
+homew_ins2<- Results_Data %>% filter(result == "H") %>% group_by(home_team, result) %>% summarise(Home_Wins = n()) %>% arrange(desc(Home_Wins)) %>% barplot(height = 3, width=.5, space= .5, xlab = "Count", ylab = "Teams", plot = T, names.arg = Results_Data$home_team)
+homew_ins2
+
+#Away Wins
+Away_lo<- Results_Data %>% filter(away_team == "Liverpool") %>% group_by(away_team, result) %>% filter(result == "H") %>%
+  summarise(Away_Loss= n()) %>% arrange(desc(Away_Loss)) 
+  #%>%ggplot(aes(x=away_team, y=Away_wins, fill = Away_wins))+
+Away_lo
+
+
+#1Away_Wins
+
+grid.arrange(Home_Wins, Away_Wins, ncol=2)
+
+#Insights gained 
+#1. Manchester United have more home wins when compared to any other teams
+#2. Derby County have just 1 home win
+#3. Chelsea have more away wins 
+#4. Charlton Athletic have only 1 away win
+
+
+#Overall Wins
+OverallWins<- Results_Data  %>% 
+  group_by(home_team, away_team,result) %>% group_by() %>%
+  summarise(Total_Wins = n()) %>% arrange(desc(Total_Wins))
+
+
+
+#This can only be done by merging technique
+
+new_Data<- merge.data.frame(Home_Wins, Away_Wins)
+
+
+OverallWins
+
+Results_Data$Winner<- Results_Data %>% filter(result =="H" && result == "A") %>% 
+  mutate(Results_Data$Winner<- ifelse(result == "H", home_team, away_team))
+
+
+#Merge part is incomplete
+
+Stats_Data %>% group_by(season, team) %>% summarise(Total_G = sum(goals)) %>% arrange(desc(Total_G))
+
+
+
+```
+
+```{r}
+
+#Away Losses
+Top6 <- c("Manchester United", "Manchester City", "Liverpool", "Chelsea", "Tottenham Hotspur", "Arsenal")
+
+
+  
+  
+Away_loss_Count<-function(i){
+ Away_losses<- Results_Data %>% filter(away_team == i) %>% group_by(away_team, result, season) %>% filter(result == "H") %>%
+  summarise(Away_Loss= n())# %>% arrange(desc(Away_Loss)) 
+print(Away_losses)
+}
+
+for (i in Top6){
+  Away_loss_Count(i)
+  
+}
+
+
+TopSix<- read.csv("topsixfile.csv")
+TopSixFile <- TopSix %>% select(season,team, total_awayloss) 
+  
+Away_loss_Count<-function(i){
+ Away_losses<- TopSixFile %>% filter(team == i) %>% group_by(team, season, total_awayloss) %>% ggplot(aes(x= season, y=total_awayloss))+ geom_bar(stat = "identity")+labs(x="Season", y = "Away Loss", title = i) + geom_text(mapping = aes(label = total_awayloss, vjust =-0.5))
+print(Away_losses)
+}
+
+for (i in Top6){
+  Away_loss_Count(i)
+  print(Away_losses)
+}
+  
+  
+  
+  
+  
+
+
+
+
+```
+
+```{r}
+
+#Part 3
+#Manchester United aka Red Devils
+
+head(Results_Data)
+head(Stats_Data)
+
+Results_Data %>% filter(home_team == "Manchester United" || away_team == "Manchester United") %>% group_by(result== "H" || result =="A")
+
+#No Of Goals Scored by MU in each season from 2006-07 to 2017-18
+
+Stats_Data %>% group_by(season, goals) %>% 
+  filter(team == "Manchester United") %>% arrange(desc(goals)) %>% 
+  ggplot(aes(x=season, y = goals, fill = goals )) +geom_bar(stat="identity") + geom_text(mapping= aes(label= goals ), vjust=0.25, hjust = 0, size = 3)+ theme(axis.text = element_text(colour="Black")) + labs(x="season", y="goals scored", tags="Manchester United Season Analysis") +coord_flip()
+
+#No of matches won by MU in each season from 2006-07 to 2017-18
+
+head(Stats_Data)
+
+Stats_Data %>% group_by(season, wins) %>% filter(team == "Manchester United") %>% arrange(desc(wins)) %>% ggplot(aes(x=season, y= wins, fill = wins)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label = wins), vjust= -0.25, hjust=0, size = 3) + labs(x="Season", y="Num of Matches won" ) +coord_flip()
+
+#No of away/home goals scored by MU
+
+#Home Goals
+
+head(Results_Data)
+
+MU_HomeGoals<- Results_Data %>% group_by(season) %>% filter(home_team == "Manchester United") %>%
+  summarise(Total_HomeGoals = sum(home_goals)) %>% 
+  arrange(desc(Total_HomeGoals)) %>%
+  ggplot(aes(x=season, y=Total_HomeGoals, fill=Total_HomeGoals)) + 
+  geom_bar(stat = "identity") + 
+  geom_text(mapping=aes(label=Total_HomeGoals), vjust = -0.25, hjust = 0, size = 3)+ theme(axis.title = element_text(color="black")) + labs(x="Season", y="Num of Home Goals Scored", caption="Manchester United Home Goals analysis") + coord_flip()
+
+ 
+#Away Goals
+
+MU_AwayGoals<- Results_Data %>% group_by(season) %>% filter(away_team == "Manchester United") %>%
+  summarise(Total_AwayGoals = sum(away_goals)) %>% 
+  arrange(desc(Total_AwayGoals)) %>%
+  ggplot(aes(x=season, y=Total_AwayGoals, fill=Total_AwayGoals)) + 
+  geom_bar(stat = "identity") + 
+  geom_text(mapping=aes(label=Total_AwayGoals), vjust = -0.25, hjust = 0, size = 3)+ theme(axis.title = element_text(color="black")) + labs(x="Season", y="Num of Away Goals Scored", caption="Manchester United Away Goals analysis") + coord_flip()
+
+
+MU_HomeGoals
+MU_AwayGoals
+
+
+grid.arrange(MU_AwayGoals,MU_HomeGoals, nrow=1)
+
+
+
+#Manchester United WIN-DRAW-LOSS
+
+#3 new variables: MU_home, MU_away, MU_result and Overall_MU
+
+
+#Manchester United Home
+head(Results_Data)
+
+MU_home<- Results_Data %>% group_by(season) %>% filter(home_team =="Manchester United")  %>%
+  group_by(away_team)%>%
+  mutate(MU_Result = ifelse(result == "H", "United Win", ifelse(result=="D", "Draw", "United Lose")))
+
+MU_home
+
+#Manchester United Away
+MU_away<- Results_Data %>% group_by(season) %>% 
+  filter(away_team == "Manchester United") %>% group_by(home_team) %>% 
+  mutate(MU_Result = ifelse(result=="A", "United Win", ifelse(result=="D", "Draw","United Lose")))
+                                                  
+MU_away
+
+Overall_MU<- rbind(MU_home, MU_away)
+
+Overall_MU
+Overall_MU$Opponent <- ifelse(Overall_MU$home_team == "Manchester United", as.character(Overall_MU$away_team), as.character(Overall_MU$home_team))
+
+head(Overall_MU)
+
+
+Overall_MU %>% group_by(result, Opponent) %>% count() %>%
+  group_by(Opponent) %>% mutate(WDL_percentage = signif((n/sum(n))*100),3) %>% 
+  ggplot() + geom_bar(aes(x= Opponent,y=WDL_percentage, fill= result), stat="identity") +  labs(x="Teams", y="WinDrawLoss %", caption = "Win Draw Loss Percentage of Manchester United", title= "Manchester United v/s Other teams", subtitle = "Win-Draw-Loss Percentage") +  theme(legend.position ='bottom',axis.title.y = element_text(size=10), axis.text.y = element_text(size = 9),axis.title.x = element_text(size=10),axis.text.x = element_text(angle = 90, size = 9), plot.title = element_text(size=10, hjust = 0.5)) 
+#+ geom_text(aes(x=Opponent, y=WDL_percentage, label=WDL_percentage, angle=45, size=0.01),position=position_stack(vjust=0.05))
+
+
+#Insights gained 
+#1. Manchester United have never lost to Blackpool, Derby County, Sheffield United, Charlton Athletic and Queens Park Rangers(QPR). Although in plot we can observe that all these teams have diff WDL % its because they had just one match with MU b/w 2006 and 2018. Surprised me too!
+#2. But against Huddersfield Town and The Seagulls aka Brighton and Hove Albion, United have never lost at home.
+#3. The WDL percentage of Manchester United with Manchester City shows the Manchester Derby hype. Although City seems to be dominant, its not one sided
+
+home_MU<-Results_Data %>% group_by(season) %>%  filter(home_team == "Manchester United") %>% group_by(away_team) %>% filter(result == "H") %>% group_by(away_team) %>% filter(away_team == "Bolton Wanderers")
+
+home_MU
+
+away_MU<-Results_Data %>% group_by(season) %>%  filter(away_team == "Manchester United") %>% group_by(home_team) %>% filter(result == "H") %>% group_by(home_team) %>% filter(home_team == "Bolton Wanderers")
+
+away_MU
+
+
+
+```
+
+```{r}
+#Rivalries
+
+#North-London Derby i.e Tottenham Hotspurs and Arsenal( Spurs v/s Gunners)
+
+ 
+#I'm gonna use Gunners for Arsenal and Spurs for Tottenham 
+
+#new variables: Gunners_Home, Gunners_Away, Spurs_Home, Spurs_Away
+
+head(Results_Data)
+
+#GUNNERS Home
+
+#Just rename the column, bcoz while binding up with spurs or Gunners_away it may cause pr
+Gunners_Home<- Results_Data %>% filter(home_team == "Arsenal") %>%
+  rename(team =home_team)%>% 
+  mutate(PL_Result= ifelse(result=="H", "Win", ifelse(result=="A", "Lose", "Draw"))) %>% select(team, season, PL_Result)
+
+
+#GUNNERS Away
+Gunners_Away<- Results_Data %>% filter(away_team == "Arsenal") %>% 
+  rename(team = away_team) %>%
+  mutate(PL_Result= ifelse(result == "A", "Win", ifelse(result=="H", "Lose", "Draw"))) %>% select(team, season, PL_Result)
+
+Gunners_Away
+Gunners_Home
+
+Overall_Gunners<- rbind(Gunners_Home, Gunners_Away)
+
+Overall_Gunners
+
+#Gunners WDL Count
+Gunners_WDL<- Overall_Gunners %>% group_by(team, PL_Result, season) %>% 
+  summarise(WDL_Count= n()) %>% arrange(desc(WDL_Count)) 
+Gunners_WDL
+
+
+#SPURS Home
+Spurs_Home<- Results_Data %>% filter(home_team == "Tottenham Hotspur") %>% rename(team = home_team) %>% 
+  mutate(PL_Result = ifelse(result == "H", "Win", ifelse(result == "A", "Lose", "Draw"))) %>% select(team, season, PL_Result)
+
+#SPURS Away
+Spurs_Away<- Results_Data %>% filter(away_team == "Tottenham Hotspur") %>% rename(team = away_team) %>%
+  mutate(PL_Result = ifelse(result == "A", "Win", ifelse(result == "H", "Lose", "Draw"))) %>% select(team, season, PL_Result)
+
+Spurs_Home
+Spurs_Away
+
+
+Overall_Spurs<- rbind(Spurs_Home, Spurs_Away)
+Overall_Spurs
+
+#Spurs WDL
+Spurs_WDL<- Overall_Spurs %>% group_by(team,PL_Result,season) %>% summarise(WDL_Count=n()) %>% arrange(desc(WDL_Count))
+Spurs_WDL
+
+
+
+#North London WDL Count
+
+NL_Derby<- rbind(Gunners_WDL, Spurs_WDL)
+NL_Derby
+
+
+NL_Derby %>% mutate(co= ifelse(team== "Arsenal", WDL_Count, -WDL_Count)) %>%
+  ggplot(aes(y=co, x= season, fill=PL_Result)) + geom_bar(stat= "identity") + scale_y_continuous(breaks=c(-38,seq(-30,30,5), 38), label = abs)+ theme_fivethirtyeight()+ coord_flip()+labs(x = "Season", y="Result", caption= "North-London Derby", title = "Spurs v/s Gunners ", subtitle =  "by number of wins, draws and losses") + geom_hline(yintercept = 30,alpha =1)  + geom_hline(yintercept = 20, alpha =1) + geom_hline(yintercept = 10,alpha =1)   + geom_hline(yintercept = -10, alpha=1)  + geom_hline(yintercept =-20, alpha=1)  + geom_hline(yintercept = -30, alpha=1) +geom_hline(yintercept = 0, alpha=1) + theme_economist()
+
+
+
+#Plot of Result v/s Season
+
+#Insights gained
+#1.In 2007-08 Gunners had lost just 3 matches. It seems that Gunners had their best season b/w 2006 to 2018 under Wenger. And they even finished third, leaving Chelsea at the 2nd spot and Manchester United winning the PL.
+#2. 2016-17 season seems to be Spurs's best season with just 4 games lost and finishing 2nd place, 7 points behind Chelsea, who won the PL under Conte.
+#3. 2007-08 seems to be the worst season for Spurs. Juande Ramos was the manager appointed, after sacking Martin Jol. 14 defeats, 13 draws left Spurs in 11th position of PL table that season.
+#4. After sacking Juande Ramos, Spurs appointed Harry Redknapp who tried to stabilize the condition. But Spurs still suffered heavy blows. Stats say they almost lost 15 matches, with 0 goal difference. They secured 8th position in the table.
+#5. 2017-18 season for Arsenal seemed to the worst one with almost 13 defeats. It was Wenger's last season. On the other hand they'd won 19 matches. When I checked their Goal Stats, it became obvious why they secured 6th position that season. Goals scored 74 and Goals conceded 51, so that make GD= 23. Their defence ruined the party.
+
+
+```
+
+```{r}
+#Merseyside Derby
+
+#Everton v/s Liverpool aka Blues v/s Reds
+
+#new var: Blues_home, Blues_away, Reds_home, Reds_away
+
+head(Results_Data)
+
+#EVERTON
+
+#First of all extract all results of Home matches that Everton played b/w 2006-2018
+#like if result is home, then Everton wins else draw or loss i.e W, D, L
+
+Blues_home<- Results_Data %>% filter(home_team == "Everton") %>% 
+  rename(team= home_team) %>%
+  mutate(PL_Result= ifelse(result == "H","Win", ifelse(result == "D", "Draw", "Lose"))) %>%   
+  select(team,PL_Result,season)
+
+#do the same for away side
+Blues_away<- Results_Data %>% filter(away_team == "Everton") %>%
+  rename(team = away_team) %>% 
+  mutate(PL_Result = ifelse(result == "A","Win", ifelse(result == "D", "Draw", "Lose"))) %>%
+  select(team, PL_Result, season)
+
+
+Blues_home
+Blues_away
+
+Overall_Blues<- rbind(Blues_home, Blues_away)
+
+Blues_WDL<- Overall_Blues %>% group_by(team, PL_Result, season) %>% summarise(WDL_MD = n()) %>% arrange(desc(WDL_MD))
+
+Blues_WDL
+
+#LIVERPOOL
+
+Reds_home<- Results_Data %>% filter(home_team == "Liverpool") %>%
+  rename(team = home_team) %>% mutate(PL_Result= ifelse(result == "H", "Win", ifelse(result == "D", "Draw","Lose"))) %>% select(team, PL_Result, season)
+                                      
+
+Reds_away<- Results_Data %>% filter(away_team == "Liverpool") %>% rename(team = away_team) %>% mutate(PL_Result = ifelse(result == "A", "Win", ifelse(result== "D", "Draw", "Lose"))) %>% select (team, PL_Result, season)
+    
+
+Reds_home
+Reds_away
+
+Overall_Reds<- rbind(Reds_home, Reds_away)
+
+Reds_WDL<-Overall_Reds %>% group_by(team, PL_Result, season) %>% summarise(WDL_MD= n()) %>% arrange(desc(WDL_MD))
+
+Reds_WDL
+
+
+MerseySide_WDL<- rbind(Blues_WDL, Reds_WDL)
+
+
+MerseySide_WDL
+
+MerseySide_Derby<- MerseySide_WDL %>% mutate(MD_Count= ifelse(team == "Everton", WDL_MD, -WDL_MD)) %>% ggplot(aes(y=MD_Count, x=season, fill = PL_Result)) + geom_bar(stat ="identity") +scale_y_continuous(breaks=c(-38,seq(-30,30,5), 38), label = abs)+ geom_hline(yintercept = 10, alpha=1) +  geom_hline(yintercept = 10, alpha=1) +  geom_hline(yintercept = 20, alpha=1) +  geom_hline(yintercept = 30, alpha=1) +  geom_hline(yintercept = -10, alpha=1) +  geom_hline(yintercept = -20, alpha=1) +  geom_hline(yintercept =-30, alpha=1) +  geom_hline(yintercept = 0, alpha=1) +
+  coord_flip() +  labs(x="Season", y="Win-Draw-Loss %", caption= "MerseySide Derby", title = "The Reds v/s The Blues", subtitle = "by number of wins, draws and losses", size= 4) + theme_economist() + theme_fivethirtyeight()+ theme(axis.title = element_text(size=10, color="Red")) + theme(plot.subtitle = element_text(size=9)) + theme(plot.title = element_text(color = "Black")) + theme(plot.caption =  element_text(size=10, color="Black"))
+
+MerseySide_Derby
+
+#lets try to extract the position of these two teams in different season
+
+head(Stats_Data)
+
+Stats_Data %>% group_by(team,season, wins, losses) %>% mutate(Points = (as.numeric(wins)*3) + ((38 - (as.numeric(wins)+as.numeric(losses))) * 1)) %>% filter(team =="Liverpool") %>%
+  group_by(season, Points) %>% arrange(desc())
+
+Stats_Data %>% group_by(season, team) %>% arrange(season)
+
+
+#so in every season of Premier league, each team will play 38 matches together. Since there's no points column we have to create one!
+
+
+#Insights gained
+#1. Liverpool had their best season in 2013-14, securing 2nd position with just 2 points behind Manchester City. Won-26, Lost-6, Drew-6. Credits to Rogers.
+#2. Coincidentally, Everton's best season is also 2013-14. Credits to Roberto Martinez
+#3. 2011-12 seems to be byfar the worst season for Liverpool fans with W/D/L - 14/10/14. 8th position in the table. 
+#4. Everton's worst season was 2015-16 with W/D/L - 11/14/13. They secured 11th position. Surprisingly this was Liverpool's 2nd worst season after 2011-12. No wonder there were almost 8 managers sacked during this season, which includes Mourinho from Chelsea, Brendan Rogers from Liverpool and Roberto Martinez from Everton.
+
+
+
+                                                                                      
+```
+
+```{r}
+#Manchester Derby
+#Manchester United v/s Manchester City
+tail(Results_Data)
+
+
+#nicknames : Cityzens, RedDevils
+
+#new_variables : City_home, City_away, United_home, United_away
+
+#Manchester City
+
+City_home<- Results_Data %>% filter(home_team == "Manchester City") %>% rename(team = home_team) %>%
+  group_by(team, result, season) %>% mutate(PL_result = ifelse(result == "H", "Win", ifelse(result == "D", "Draw", "Loss")))
+
+City_away<- Results_Data %>% filter(away_team == "Manchester City") %>% rename(team = away_team) %>% group_by(team, result, season) %>% mutate(PL_result = ifelse(result == "A", "Win", ifelse(result == "D", "Draw", "Loss")))
+
+
+Overall_City<- rbind(City_home, City_away)
+
+Overall_City
+
+
+
+City_WDL<- Overall_City %>% group_by(team,PL_result, season) %>% summarise(WDL_MC = n()) %>% arrange(desc(WDL_MC))
+
+City_WDL
+
+
+#Manchester United
+
+
+#United_home, United_away, Overall_United, United_WDL
+
+
+United_home<- Results_Data %>% filter(home_team == "Manchester United") %>% rename(team = home_team) %>%
+  group_by(team, result, season) %>% mutate(PL_result = ifelse(result == "H", "Win", ifelse(result == "D", "Draw", "Loss")))
+
+United_away<- Results_Data %>% filter(away_team == "Manchester United") %>% rename(team = away_team) %>% group_by(team, result, season) %>% mutate(PL_result = ifelse(result == "A", "Win", ifelse(result == "D", "Draw", "Loss")))
+
+Overall_United<- rbind(United_home, United_away)
+
+Overall_United
+United_WDL<- Overall_United %>% group_by(team,PL_result, season) %>% summarise(WDL_MC = n()) %>% arrange(desc(WDL_MC))
+
+Overall_United %>% filter(PL_result == "Loss") %>% summarise(Total_Matches = n()) %>% group_by(result, season)
+
+United_WDL
+
+Manchester_WDL<- rbind(City_WDL, United_WDL)
+
+Manchester_WDL
+
+Manchester_Derby<- Manchester_WDL%>% mutate(MC_Count=ifelse(team == "Manchester City", WDL_MC, -WDL_MC)) %>% ggplot(aes(y=MC_Count, x=season, fill = PL_result)) +geom_bar(stat= "identity")  +scale_y_continuous(breaks=c(-38,seq(-30,30,5), 38), label = abs) + geom_hline(yintercept = 10, alpha =1) + geom_hline(yintercept = 20, alpha =1) + geom_hline(yintercept = 30, alpha =1) + geom_hline(yintercept = -10, alpha =1) + geom_hline(yintercept =-20, alpha =1) + geom_hline(yintercept = -30, alpha =1) + geom_hline(yintercept = 0, alpha =1) + labs(x="Season", y= "Win-Draw-Loss %", caption = "Manchester Derby", title = "Manchester United v/s Manchester City", subtitle= "by number of wins, losses and draws") + coord_flip()
+
+
+Manchester_Derby
+#Insights gained
+
+#1.Sir Alex Ferguson clearly had the dominance while he was managing Manchester United. They lost just 21 matches b/w 2006-2010 out of 162 matches.During this period, the probablity of United losing a game is 13%. 
+
+#2. From 2006-07 to 2012-13, United were top dogs. Like they won the Premier League consecutively from 2006 to 2009, then one in 2010 and one in 2012. Totally 5 Premier League titles in the span of 7 years. But now, its been 7 years since winning the title.
+
+#3. After Sir Alex Ferguson's departure, City started dominating under Mancini, Pelligrini and now Guardiola. While United struggled to build a new team and perform the way it should. During 2013-14 to 2016-17 seasons, one can clearly see United's mediocore performance. They struggled to win 20+ matches in this period, while City outperformed them by winning the title in 2013-14. And then consistently securing a Champions League Position in the table.
+
+#4. Under Mourinho, United seemed to comeback to its original form, but in the opposite way i.e defensively. Mou's 2nd season seemed to the best season of United after SAF's departure securing 2nd place in the table.
+
+#5. Manchester City's best seasons: 2017-18, 2016-17, 2013-14, 2011-12, 2014-15
+
+#6. Manchester United's best seasons: 2006-13, 2017-18
+
+#7. PL titles won: #United - 5
+                   #City   - 3
+
+
+
+head(Stats_Data)
+
+g0 <- Stats_Data %>% filter(team == 'Manchester United' | team =='Liverpool') %>% 
+  ggplot(aes(x=season,y=te,group=team,color=team)) + geom_line(size=4,alpha=.5) +
+  geom_point(size=4,color='black') + coord_flip() +
+  scale_color_brewer(name='',palette='Paired') + geom_hline(yintercept=1, alpha=.5) +
+  ylim(0,25) + theme_fivethirtyeight() + 
+  labs(title='End of Season\'s Position',subtitle='well .. Man. United is the winner')
+g0
+g1 <- rbind(
+  Stats_Data %>% filter(team =='Manchester United') %>% select(team, F, P, X.,season) %>% 
+    mutate(hasWonLeague = ifelse(X.==1,'YES','NO')), 
+  Stats_Data %>% filter(team =='Liverpool') %>% select(team, F, P, X.,season) %>% 
+    mutate(hasWonLeague = ifelse(X.==1,'YES','NO'))) %>% 
+  ggplot(aes(x=F, y=P, color=team)) + geom_point(size=4) + 
+  theme_fivethirtyeight() + scale_color_brewer(name='', palette='Paired') + 
+  geom_label_repel(aes(label=ifelse(hasWonLeague == 'YES', season,''))) + 
+  theme(legend.position='None') + 
+  xlim(40,110) + ylim(40,110) + labs(subtitle='Total Points vs. total Goals')
+
+
+g0 + annotation_custom(ggplotGrob(g1),xmin=3, xmax=11.3,ymin=10,ymax=25)
+```
+
+```{r}
+
+
+#Season Breakdown by stats
+
+
+head(Stats_Data)
+
+#Penalty Goals Saved!
+Penalty_Goals<- Stats_Data %>% group_by(season ) %>% summarise(Total_Saves = sum(penalty_save)) %>% arrange(desc(Total_Saves)) %>% group_by(season)%>% ggplot(aes(x=season, y=Total_Saves)) + geom_bar(stat="identity")  + theme_fivethirtyeight() + geom_text(mapping = aes(label = Total_Saves, vjust = -.15, hjust = 0.5)) + scale_y_continuous(breaks = c(seq(0,200,5)), label = abs) + theme(axis.title = element_text(size=10, color = "black")) + theme(axis.text.y = element_text(size=8)) +theme(axis.text.x = element_text(size=7))+ labs(x="Season", y="Penalty Saves", caption ="Penalty Saves in PL Seasons from 2006-18")
+
+#Penalty  Conceded
+
+Penalty_Conceded1<- Stats_Data %>% group_by(season ) %>% 
+  summarise(Total_PenaltyConceded = sum(penalty_conceded)) %>% 
+  arrange(desc(Total_PenaltyConceded)) %>% group_by(season)#%>%
+#  ggplot(aes(x=season, y=Total_PenaltyConceded)) + geom_bar(stat="identity")  + theme_fivethirtyeight() + geom_text(mapping = aes(label = Total_PenaltyConceded, vjust = -.15, hjust = 0.5)) + scale_y_continuous(breaks = c(seq(0,200,20)), label = abs) + theme(axis.title = element_text(size=10, color = "Blue")) + theme(axis.text.y = element_text(size=8, color ="Black")) +theme(axis.text.x = element_text(size=7, color ="Black"))+ labs(x="Season", y="Penalty Conceded", caption ="Penalty Conceded in PL Seasons from 2006-18")
+Penalty_Conceded1
+#Penalty Goals Conceded
+Penalty_GoalsConceded1<- Stats_Data %>% group_by(season ) %>% 
+  summarise(Total_PenaltyGoalsConceded = sum(pen_goals_conceded)) %>% 
+  arrange(desc(Total_PenaltyGoalsConceded)) %>% group_by(season)
+Penalty_GoalsConceded1
+
+
+
+Percentage_Penalty<- cbind(Penalty_Conceded1,Penalty_GoalsConceded1)
+#So here I just binded two dataframes like Penalties conceded and Penalties saved
+#Then I used it as a new dataframe to create a plot of % of Penalty Saves in different seasons!
+PenaltySave_Percentage<- Percentage_Penalty%>% group_by(season) %>% 
+  mutate(Percentage_Saves= round((Total_PenaltyGoalsConceded/Total_PenaltyConceded)*100))%>%
+  arrange(Percentage_Saves) %>% ggplot(aes(x=season, y=Percentage_Saves)) + geom_bar(stat="identity", position ="dodge") + geom_text(mapping = aes(label = paste0(Percentage_Saves,"%"), vjust = -0.10, hjust = -0.25))+ labs(x = "Season", y = "Percentage of Penalty Saves", title ="Percentage of Penalties Conceded") + theme_classic()+ coord_flip()
+
+
+PenaltySave_Percentage
+
+#Insights gained
+#1. Till 2015-16, average percentage of penalty saves was 78%. But it has been decreasing from then. One possible reason would be new penalty scoring techniques i.e slow-run up, or some other hacks which is way more effective than Old School technique i.e taking a mediocore runup and scoring into either left or right corner OR chip goals!
+#2.
+#-----------------------------------------------------------------------------------------
+
+#Penalty Goals Conceded
+Penalty_GoalsConceded1<- Stats_Data %>% group_by(season ) %>% 
+  summarise(Total_PenaltyGoalsConceded = sum(pen_goals_conceded)) %>% 
+  arrange(desc(Total_PenaltyGoalsConceded)) %>% group_by(season)#%>%
+#  ggplot(aes(x=season, y=Total_PenaltyGoalsConceded)) + geom_bar(stat="identity")  + theme_fivethirtyeight() + geom_text(mapping = aes(label = Total_PenaltyGoalsConceded, vjust = -.15, hjust = 0.5)) + scale_y_continuous(breaks = c(seq(0,200,20)), label = abs) + theme(axis.title = element_text(size=10, color = "Blue")) + theme(axis.text.y = element_text(size=8, color ="Black")) +theme(axis.text.x = element_text(size=7, color ="Black"))+ labs(x="Season", y="Penalty Goals Conceded", caption ="Penalty Goals Conceded in PL Seasons from 2006-18")
+
+
+
+Penalty_Goals
+Penalty_Conceded
+Penalty_GoalsConceded
+
+Penalties<- grid.arrange(Penalty_Conceded, Penalty_GoalsConceded, ncol=2)
+Penalties
+
+
+#Lets calculate % of Penalty scored/conceded
+
+grid.arrange(Penalty_Conceded, Penalty_Goals, ncol=2)
+
+#Penalty_GoalConceded1 Penalty_Conceded1 Percentage_OfPenaltySaves<-signif((Total_PenaltyGoalsConceded/Total_PenaltyConceded)*100)
+
+round(78780.4545)
+
+#----------------------------------------------------------------------------------------
+
+#I want to calculate which team conceded most penalty goals, so that I can understand who is better GK
+Teams_PenaltyGoalsConceded<- Stats_Data %>% group_by( team) %>% summarise(Total_PenConceded = sum(pen_goals_conceded)) %>% arrange(desc(Total_PenConceded)) %>% arrange(desc(Total_Pen))  #%>% group_by(team, season) %>% ggplot(aes(y=Total_Conceded, x= season)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label = team, angle= 90, vjust = -10, hjust = 0, size = 1)) + theme_fivethirtyeight() + labs(x= "Team", y = "Total Penalty Conceded") + theme(axis.text = element_text(size=7)) + theme(axis.text= element_text(size = 7))
+Teams_PenaltyConceded
+
+
+head(Stats_Data)
+
+Stats_Data  %>% group_by(team) %>%
+  summarise(Total_PenConceded = sum(pen_goals_conceded)) %>% arrange(desc(Total_PenConceded)) %>% top_n(15) %>% ggplot(aes(x=team, y=Total_PenConceded ))+ geom_bar(stat = "identity")+ geom_text(mapping = aes(label = Total_PenConceded,hjust =-0.5, vjust = 0.5)) + labs(x="Total Penalty Goals Conceded", y= "Premier League Team", title = "Penalty Goals conceded by Premier League Clubs ",subtitle = "Thanks to Wenger*_*  -By an Unknown Arsenal Fan" )+ theme_fivethirtyeight() + coord_flip()+ theme(plot.title = element_text(size=12,color = "Blue"))+ theme(plot.subtitle =  element_text(size=9, color = "Black")) + theme(axis.text = element_text(color = "Green"))
+
+
+All_Seasons <- unique(Teams_PenaltyConceded$season)
+All_Seasons
+
+#Insights gained 
+
+#1. In 22 years of career as a manager, Arsene Wenger bought 16 different GoalKeepers inc Fabianski, Ospina, Cech, Alumnia etc. I guess this is what took them to the top of the Penalty Conceded list. Like each Gk has contributed something or the other, all are mediocore penalty savers. So on total that makes them the team with highest penalty conceded.
+#2. On the other hand teams like Manchester United and City, numbers range from 25 to 29 which is pretty decent. 
+#3. Teams like West Ham United and West Bromwich Albion should improve and try to lower those rookie numbers.
+
+
+
+
+
+
+
+
+
+
+#----------------------------------------------------------------------------------------
+
+Teams_penaltyconceded<- Stats_Data %>% group_by(season, team) %>% summarise(Total_PConceded = sum(penalty_conceded)) %>% arrange(desc(Total_PConceded)) %>% group_by(team, season)
+head(Stats_Data)
+Teams_penaltyconceded
+
+#Insights gained 
+#1. In 2012-13 Manchester United, conceded 0 penalties with just one red card. 
+Stats_Data%>% group_by(season ) %>% group_by(team, total_yel_card, total_red_card) 
+
+(144+78+82+79)
+313/5
+
+
+
+x <- c(5, 1, 3, 2, 2, NA)
+row_number(x)
+min_rank(x)
+dense_rank(x)
+percent_rank(x)
+cume_dist(x)
+```
+
+```{r}
+
+head(Stats_Data)
+
+#Season Breakdown
+
+
+#Part1
+
+#Total Yellow Card
+TYC<- Stats_Data %>%
+  group_by(season) %>% 
+  summarise(Total_Yellow_Card = sum(total_yel_card)) %>% 
+  arrange(desc(Total_Yellow_Card)) %>%
+  group_by(season, Total_Yellow_Card)%>%
+  ggplot(aes(x=season, y=Total_Yellow_Card)) + geom_bar(stat="identity")  + theme_fivethirtyeight()  + scale_y_continuous(breaks = c(seq(0,1500,300)), label = abs) + theme(axis.title = element_text(size=10, color = "Blue")) + theme(axis.text.y = element_text(size=8, color ="Black")) +theme(axis.text.x = element_text(size=6.75, color ="Black"))+ labs(x="Season", y="Number of Yellow Cards", caption ="Yellow Cards count in Premier League from 2006-18")+ geom_text(mapping = aes(label = Total_Yellow_Card, vjust =0.,hjust =0, angle=90))
+
+
+
+Stats_Data %>% group_by(team, season) %>% summarise(TO_YC = sum(total_yel_card)) %>%
+  arrange(desc(TO_YC)) 
+
+TYC
+#Insights gained  Total Yellow Cards Plot
+#1. 2016-17 saw the highest num of yellow cards i.e 1380. With Watford FC having the 84 Yellow Cards. Surprisingly Manchester United had almost 78 yellow cards, like their legacy was attacking football. Mourinho's defensive style is the main reason. During SAF's period count of YC would < 60. Anyways it doesn't matter !
+#2. Sunderland had almost 94 yellow cards in 2014-15 season, highest number of yellow cards by a team in one season.That's an average of 2.5 yellow cards per game
+#3. Chelsea being one of the top 6 Premier League clubs has 42 Yellow cards in 2017-18 season. Currently the lowest.
+#4. As surprising as this may sound, Manchester United, West Ham United and Sunderland all had got 78 Yellow cards in 2016-17, with Crystal Palace just below these three with 77 YC.
+
+
+
+#Total Red Card
+TRC<- Stats_Data %>%
+  group_by(season) %>%
+  summarise(Total_Red_Card = sum(total_red_card)) %>%
+  arrange(desc(Total_Red_Card)) %>% 
+  ggplot(aes(x=season, y=Total_Red_Card)) + geom_bar(stat="identity")  + theme_fivethirtyeight()  + scale_y_continuous(breaks = c(seq(0,500,5)), label = abs) + theme(axis.title = element_text(size=10, color = "Blue")) + theme(axis.text.y = element_text(size=8, color ="Black")) +theme(axis.text.x = element_text(size=7, color ="Black"))+ labs(x="Season", y="Number of Red Cards", caption ="Red Cards count in Premier League from 2006-18") + geom_text(mapping = aes(label = Total_Red_Card, vjust =0,hjust =0,angle = 90)) 
+
+TRC
+Stats_Data %>% group_by(team, season) %>% summarise(TO_YC = sum(total_red_card)) %>%
+  arrange(TO_YC) %>% filter(team == "Liverpool")
+
+#Insights Gained Red Card Plot
+#1. 2014-15 saw the highest number of players being sent off, with the total count of 71
+#2. QPR had 9 red cards in one single season, with a count of 9 in 2011-12 season.
+#3. 2017-18 had the least no of Red Cards i.e 39. Also two teams in this season didn't even get a single yellow card i.e Crystal Palace and Burnley. 
+#4. Surprisingly Crystal Palace had 0 red cards even in its previous season. 
+#5. Liverpool have got just one red card in its last two seasons. Well Played Klopp!
+
+
+TRC
+
+Total_Cards<- grid.arrange(TYC, TRC, ncol=2)
+Total_Cards
+
+#do the insights part later
+
+
+```
+
+```{r}
+head(Stats_Data)
+
+#Season Breakdown Part2
+
+#Variables to analyse Defensive Attributes, Attacking Attributes
+
+#Defensive Attributes:clean_sheet, goals_conceded, saves, outfielder_block, interception, total_tackle, last_man_tackle, total_clearance, head_clearance, own_goals, clearance_off_line
+
+#Attacking Attributes: total_scoring_att, ontarget_scoring_att, hit_woodwork, att_hd_goal,
+#att_pen_goal, att_freekick_goal, att_ibox_goal, att_obox_goal,total_offside, total_long_balls, total_cross
+
+
+#Defensive Attributes
+#Do the insight part later
+
+#1 Clean Sheets
+
+Total_CleanSheets<- Stats_Data %>% group_by(season) %>% summarise(CleanSheets = sum(clean_sheet)) %>% arrange(desc(CleanSheets)) %>% ggplot(aes(x=season, y=CleanSheets)) + geom_bar(stat = "identity") + geom_text(mapping=aes(label = CleanSheets, vjust =-0.15)) + theme_fivethirtyeight() + scale_y_continuous(breaks = seq(0,400,100)) + labs(x="Season", y="Num of Cleansheets",Title = "CleanSheet Count", subtitle ="See that drop in Cleansheet Count b/w 2009 to 2013 by season" ,caption= "CleanSheet Count in Premier League from 2006-18") + theme(axis.text = element_text(size=7.5, color= "black")) 
+
+Total_CleanSheets
+
+#2 Goals_Conceded
+
+Total_GoalsConceded<- Stats_Data %>% group_by(season) %>% summarise(TotalGC=sum(losses)) %>% arrange(desc(TotalGC)) %>% ggplot(aes(x=season, y=TotalGC)) + geom_bar(stat = "identity") + geom_text(mapping=aes(label = TotalGC, vjust =-0.15, hjust = -0.00008)) + theme_fivethirtyeight() + scale_y_continuous(breaks = seq(0,1500,300)) + labs(Title = "Goals Conceded Count by season",caption= "Goals Conceded Count in Premier League from 2006-18") + theme(axis.text = element_text(size=7.5, color= "black")) + coord_flip() + theme(plot.title = element_text(size =1 ))
+
+
+#Stats_Data %>% group_by(team,season) %>% summarise(TotalGC=sum(goals_conceded)) %>% arrange(desc(TotalGC))|
+  
+
+
+
+Total_GoalsConceded
+
+#Insights gained
+#1. Highest Goals conceded in a season was 1064 i.e 2016-17
+#2. Lowest was 945 in 2014-15
+#3. Manchester United have the lowest numbers i.e 22 in 2007-08 and 22 in 2008-09. This makes the whole thing clear that  SAF made United Top Dogs in Premier League during his period as a manager. 
+#4. Now coming to Mourinho's two year spell at United didn't disappoint(excluding 3rd season) with just 28 goals conceded in 2017/18 and securing 2nd place in the table, the highest place since the departure of Sir Alex Ferguson.
+#5. Top 6 teams like City and Spurs have a sound defensive system, along with fierceful forwards and creative midfield side.
+#6. From 2010-2014 total count of goals conceded was almost consistent >1000 with some minute variations
+
+
+
+
+#3 Outfielder Block
+Total_OutfieldBlocks<- Stats_Data %>% group_by(season) %>%
+summarise(Total_OBlocks= sum(outfielder_block)) %>% arrange(desc(Total_OBlocks)) %>%
+  ggplot(aes(x=season, y=Total_OBlocks)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Total_OBlocks, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,4000,750)) + theme_fivethirtyeight() + labs(x="Season", y="Outfield Blocks", title = "Outfielder Blocks Count by season", caption = "Count of Outfielder Blocks in Premier League ") + theme(axis.text = element_text(color="Black", size=7))+ scale_colour_manual("legend",values=c(Total_OBlocks="Blue"))
+
+Stats_Data %>% group_by(team,season ) %>%
+summarise(Total_OBlocks= sum(outfielder_block)) %>% arrange(desc(Total_OBlocks))
+
+Total_OutfieldBlocks
+#Insights gained Outfielder Block
+#1. 2902 is the highest outfielder block in 2011-12 out of all the 12 seasons.
+#2. Seasons b/w 2010-13 have almost consistent count of Outfielder blocks i.e 2902, 2896 and 2771.
+#3. 2006-07 saw the lowest outfield blocks count i.e 2130.
+#4. Aston Villa had almost 225 OBlocks(2009-10), the highest when compared against any other teams. Burnley is just 4 OBlocks(2016-17) behind Aston Villa
+#5. Top6 have least number of OBlocks like comparatively. City and Liverpool had a count below 80 last season.
+
+
+#4 Interception
+
+Total_Interceptions<- Stats_Data %>% group_by(season) %>%
+summarise(Inter_Ceptions= sum(interception)) %>% arrange(desc(Inter_Ceptions)) %>%
+  ggplot(aes(x=season, y=Inter_Ceptions)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Inter_Ceptions, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,20000,5000)) + theme_fivethirtyeight() + labs(x="Season", y="Interceptions", title = "Interception Count by season",subtitle= "Koscielny(689) has the highest number of interceptions, after Gael Clichy (855)", caption = "Count of Outfielder Blocks in Premier League ") + theme(axis.text = element_text(color="Black", size=7))
+
+
+Stats_Data %>% group_by(season, team) %>%
+summarise(Inter_Ceptions= sum(interception)) %>% arrange(desc(Inter_Ceptions))
+
+Total_Interceptions
+#Insights gained
+#1. Interception count kept on increasing till 2009-10. From 5k interceptions to 14k at 2009-10 season. After that count became saturated i.e >10k.
+#2. In 2008-09 and 2009-10 season, Arsenal had almost 800+ interceptions. So totally that's around 1600 interceptions!. This was because of the presence of Interception duo Gael Clichy and Laurent Koscielny. Clichy was having his best seasons at Arsenal from 2008-09.
+#3. Interception count seems to be decreasing after 2009-10, esp after 2015-16. One reason maybe the call for the fouls and strict refereeing!.
+
+
+
+#5 total tackle
+head(Stats_Data)
+
+Total_Tackle<- Stats_Data %>% group_by(season) %>%
+summarise(Tackles= sum(total_tackle)) %>% arrange(desc(Tackles)) %>%
+  ggplot(aes(x=season, y=Tackles)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Tackles, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,40000,6000)) + theme_fivethirtyeight() + labs(x="Season", y="Tackles", title = "Tackles Count by season",subtitle= "Gareth Barry(1029) has the highest number of tackles, Leiva in 2nd with 978 and Gael Clichy in 3rd pos with 927 tackles  ", caption = "Count of Tackles in Premier League ") + theme(axis.text = element_text(color="Black", size=7))
+
+Stats_Data %>% group_by(season, team) %>%
+summarise(Tackles= sum(total_tackle)) %>% arrange(desc(Tackles))
+
+Total_Tackle
+Stats_Data %>% group_by(season, team) %>%
+summarise(Tackles= sum(total_tackle)) %>% arrange(desc(Tackles))
+#Insights gained
+#1. Tackles Count decreased in 2010-11 to some extent only to continue to have a consistent no of tackles for 4-5 seasons. The count again started decreasing during 2015-16 season. 
+#2. Major cause might be the new defensive style of gettin the ball i.e by high pressing and blocking the passing lanes. But the numbers haven't changed much just a matter of 4K tackles.
+
+
+
+#6 last man tackle
+
+Total_lastmanTackle<- Stats_Data %>% group_by(season) %>%
+summarise(lastMan_tackle= sum(last_man_tackle)) %>% arrange(desc(lastMan_tackle)) %>%
+  ggplot(aes(x=season, y=lastMan_tackle)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=lastMan_tackle, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,500,75)) + theme_fivethirtyeight() + labs(x="Season", y="Last Man Tackles", title = "Last Man Tackles Count by season", caption = "Count of Tackles in Premier League ") + theme(axis.text = element_text(color="Black", size=7))
+
+
+Stats_Data %>% group_by(season, team) %>%
+summarise(lastMan_tackle= sum(last_man_tackle)) %>% arrange(desc(lastMan_tackle))
+Total_lastmanTackle
+#Insights gained
+#1. Last man tackles count from 2008-09, 2009-10, 2010-11 had 253, 244 and 233 LM tackles. Other seasons have less than 150 LM tackles. Possible reason might be sloppier defense. Other wise how can the count of LM tackles be > 150. After 2011, LM tackle count started decreasing after being stagnant at 130, it fell to 89, 56 and to 44 being the least. 
+#2. LM tackles are really risky ones. On the other hand, this may prove Last Man's heroics and can boost his enthusiasm for the game.
+#3. When I compared red card count in 2008-09, 2010-11 and 2009-10 seasons, it was 60+. After 2016 season, it hardly crossed 40, let alone 60. 
+
+
+
+#7 total_clearance
+
+
+Total_clearance<- Stats_Data %>% group_by(season) %>%
+summarise(Clear_ance= sum(total_clearance)) %>% arrange(desc(Clear_ance))%>%
+  ggplot(aes(x=season, y=Clear_ance)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Clear_ance, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,50000,7500)) + theme_fivethirtyeight() + labs(x="Season", y="Last Man Tackles", title = "Clearances Count by season", caption = "Count of Clearances in Premier League ") + theme(axis.text = element_text(color="Black", size=7))
+
+
+Stats_Data %>% group_by(season, team) %>%
+summarise(Clear_ance= sum(total_clearance)) %>% arrange(desc(Clear_ance))
+Total_clearance
+#Insights gained
+#1. 2007-08 season had almost 40k Clearances. This was the only season in which Clearance count > 30k.
+#2. In that season, 19 teams had more than 1500 clearances.
+#3. Clearance count gradually decreased over the years.
+
+
+
+#8 head_clearance
+
+
+Total_headclearance<- Stats_Data %>% group_by(season) %>%
+summarise(head_Clearance= sum(head_clearance)) %>% arrange(desc(head_Clearance))%>%
+  ggplot(aes(x=season, y=head_Clearance)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=head_Clearance, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,40000,5000)) + theme_fivethirtyeight() + labs(x="Season", y="Head Clearances", title = "Head Clearances Count by season", caption = "Count of Head Clearances in Premier League(2007-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Stats_Data %>% group_by(season, team) %>%
+summarise(head_Clearance= sum(head_clearance)) %>% arrange(desc(head_Clearance))
+
+Total_headclearance
+
+
+#9 own_goals
+
+Total_OwnGoals<- Stats_Data %>% group_by(season) %>%
+summarise(Total_Own_Goals= sum(own_goals)) %>% arrange(desc(Total_Own_Goals))%>%
+  ggplot(aes(x=season, y=Total_Own_Goals)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Total_Own_Goals, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,100,10)) + theme_fivethirtyeight() + labs(x="Season", y="Own Goals", title = "Own Goals Count by season", caption = "Count of Own Goals in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Total_OwnGoals
+#Insights are same as that for Clearance part.
+
+
+
+#10 clearance_off_line
+
+
+Total_Clearance_OffLine<- Stats_Data %>% group_by(season) %>%
+summarise(Offline_Clearance= sum(clearance_off_line)) %>% arrange(desc(Offline_Clearance))%>%
+  ggplot(aes(x=season, y=Offline_Clearance)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Offline_Clearance, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,200,30)) + theme_fivethirtyeight() + labs(x="Season", y="Clearance Off Line", title = "Off Line Clearance Count by season", caption = " Off Line Clearance in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Total_Clearance_OffLine
+
+Stats_Data %>% group_by(season, team) %>%
+summarise(Offline_Clearance= sum(clearance_off_line)) %>% arrange(desc(Offline_Clearance))
+
+#Insights gained 
+#1. 2010-11 season saw the highest num of Off Line Clearance
+#2. Teams like Blackpool, Sunderland and Fulham had 12+ Off Line Clearance that season 
+
+
+
+
+
+
+```
+
+```{r}
+#Attacking Attributes: total_scoring_att, ontarget_scoring_att, hit_woodwork, att_hd_goal,
+#att_pen_goal, att_freekick_goal, att_ibox_goal, att_obox_goal,total_offside, total_long_balls, total_cross
+
+head(Stats_Data)
+#1 total_scoring_att
+
+Total_Shots<- Stats_Data %>% group_by(season) %>%
+summarise(TotalShots= sum(total_scoring_att)) %>% arrange(desc(TotalShots))%>%
+  ggplot(aes(x=season, y=TotalShots)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=TotalShots, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,20000,2500)) + theme_fivethirtyeight() + labs(x="Season", y="Total Shots", title = "Total Shots Count by season", caption = " Total Shots Count in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Total_Shots
+
+
+#2 ontarget_scoring_att
+
+
+Total_OnShots<- Stats_Data %>% group_by(season) %>%
+summarise(Total_OnShots= sum(ontarget_scoring_att)) %>% arrange(desc(Total_OnShots))%>%
+  ggplot(aes(x=season, y=Total_OnShots)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Total_OnShots, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,10000,1000)) + theme_fivethirtyeight() + labs(x="Season", y="Total Shots on target", title = "Total Count of Shots on target by season", caption = " Total On-Shots Count in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Total_OnShots
+
+
+#3 hit_woodwork
+
+Total_WoodWork<- Stats_Data %>% group_by(season) %>%
+summarise(Wood_Work= sum(hit_woodwork)) %>% arrange(desc(Wood_Work))%>%
+  ggplot(aes(x=season, y=Wood_Work)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Wood_Work, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,1000,100)) + theme_fivethirtyeight() + labs(x="Season", y="Total Shots on target", title = "Total Count of Shots off the Wood-Work by season", caption = " Total On-Shots(Wood-Work) Count in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))+scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral')))
+
+Total_WoodWork
+
+#4  att_hd_goal
+
+
+Total_Headers<- Stats_Data %>% group_by(season) %>%
+summarise(Header_Goals= sum(att_hd_goal)) %>% arrange(desc(Header_Goals))%>%
+  ggplot(aes(x=season, y=Header_Goals)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Header_Goals, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,1000,100)) + theme_fivethirtyeight() + labs(x="Season", y="Total Header Goals", title = "Header Goals by season", caption = " Total Header Goals Count in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Total_Headers
+
+
+#5 att_pen_goal
+
+Total_PenaltyGoals<- Stats_Data %>% group_by(season) %>%
+summarise(Penalty_Goals= sum(att_pen_goal)) %>% arrange(desc(Penalty_Goals))%>%
+  ggplot(aes(x=season, y=Penalty_Goals)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Penalty_Goals, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,1000,100)) + theme_fivethirtyeight() + labs(x="Season", y="Total Penalty Goals", title = "Penalty Goals by season", caption = " Total Penalty Goals Count in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Total_PenaltyGoals
+
+#6 att_freekick_goal
+
+Total_FreekickGoals<- Stats_Data %>% group_by(season) %>%
+summarise(FreekickGoals= sum(att_freekick_goal)) %>% arrange(desc(FreekickGoals))%>%
+  ggplot(aes(x=season, y=FreekickGoals)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=FreekickGoals, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,100,10)) + theme_fivethirtyeight() + labs(x="Season", y="Total FreeKick Goals", title = "FreeKick Goals by season ", caption = " Total FreeKick Goals Count in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+
+Total_FreekickGoals
+
+
+#7 att_ibox_goal
+
+
+Total_IboxGoals<- Stats_Data %>% group_by(season) %>%
+summarise(Goals_IBox= sum(att_ibox_goal)) %>% arrange(desc(Goals_IBox))%>%
+  ggplot(aes(x=season, y=Goals_IBox)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Goals_IBox, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,1000,100)) + theme_fivethirtyeight() + labs(x="Season", y="Total Goals scored from inside the box", title = "Cheeky/Hard ones",caption = " Total Goals scored from inside the box in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Total_IboxGoals
+
+
+#8 att_obox_goal
+
+Total_OboxGoals<- Stats_Data %>% group_by(season) %>%
+summarise(Goals_OBox= sum(att_obox_goal)) %>% arrange(desc(Goals_OBox))%>%
+  ggplot(aes(x=season, y=Goals_OBox)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Goals_OBox, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,1000,100)) + theme_fivethirtyeight() + labs(x="Season", y="Total Goals scored from Outside the box", title = "Screamers!",caption = " Total Goals scored from outside the box in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Total_OboxGoals
+
+
+
+#9 total_offside
+
+Total_offsides<- Stats_Data %>% group_by(season) %>%
+summarise(Offsides= sum(total_offside)) %>% arrange(desc(Offsides))%>%
+  ggplot(aes(x=season, y=Offsides)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Offsides, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,1000,100)) + theme_fivethirtyeight() + labs(x="Season", y="Total Offsides", title = "Offside Count by season",caption = " Offside count in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+
+Total_offsides
+
+
+#10 total_long_balls
+
+Total_longballs<- Stats_Data %>% group_by(season) %>%
+summarise(Long_Balls= sum(total_long_balls)) %>% arrange(desc(Long_Balls))%>%
+  ggplot(aes(x=season, y=Long_Balls)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Long_Balls, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,75000,10000)) + theme_fivethirtyeight() + labs(x="Season", y="Total Long Balls", title = "Long Balls Count by season",caption = " Long Balls count in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7))
+
+Total_longballs
+
+
+
+#11 total_cross
+
+Total_Crosses<- Stats_Data %>% group_by(season) %>%
+summarise(Crosses= sum(total_cross)) %>% arrange(desc(Crosses))%>%
+  ggplot(aes(x=season, y=Crosses)) + geom_bar(stat= "identity") + geom_text(mapping=aes(label=Crosses, vjust = -0.2)) + scale_y_continuous(breaks = seq(0,20000,3000)) + theme_fivethirtyeight() + labs(x="Season", y="Total Crosses", title = "Cross that ball in-to that damn D-Box!",subtitle = "Decrease in Num of Crosses played into the Box ",caption = "Count of crosses in Premier League(2006-18) ") + theme(axis.text = element_text(color="Black", size=7)) + theme(plot.subtitle = element_text(size = 7))
+
+Total_Crosses
+
+
+head(Stats_Data)
+
+
+```
+
+```{r}
+#Function for defensive and offensive attributes
+
+
+
+
+
+
+
+
+```
+
+```{r}
+#Team Breakdown
+
+head(Results_Data)
+
+unique(Results_Data$home_team)
+str(Results_Data$home_team)
+
+
+Unique_Teams<- c((unique(as.character(Results_Data$home_team))))
+
+Unique_Teams
+
+
+
+
+
+#So from 2006-18, there were 39 different teams that played in England's Top Division i.e Premier League.
+
+#In each season we have only 20 teams playing in Top Tier i.e PL. 
+
+head(Stats_Data)
+
+Wins<- Stats_Data %>%filter(team == "Manchester United") %>%
+  group_by(season) %>% summarise(Total_Wins= sum(wins)) %>% 
+  ggplot(aes(x=season, y=Total_Wins)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Wins", title= "Manchester United: Num of Wins by season") + theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7)) + geom_text(mapping = aes(label = Total_Wins), vjust = -0.15)  
+Wins
+
+#I'll try using a for loop to the plots of 39 teams by their Num of Wins
+p=0
+for (i in Unique_Teams){
+  art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_Wins=sum(wins)) %>% 
+  ggplot(aes(x=season, y=Total_Wins)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Wins", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=7))
+
+  print(art)
+  p = p+1
+    
+    }
+
+#Finally it went right. The only bug here is that for teams with insufficient data i.e with less than 4 seasons, there's just a blank plot. 7 teams including Huddersfield Town and Cardiff City have a blank bar.
+cat("Roh", "an")
+
+cat("aa","")
+
+
+#Attacking Attributes
+ #total_scoring_att, ontarget_scoring_att, hit_woodwork, att_hd_goal,
+#att_pen_goal, att_freekick_goal, att_ibox_goal, att_obox_goal,total_offside, total_long_balls, total_cross
+
+#2. Losses
+p=0
+for (i in Unique_Teams){
+  art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_Losses=sum(losses
+)) %>% 
+  ggplot(aes(x=season, y=Total_Losses)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Losses", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=10)) + geom_text(mapping = aes(label=Total_Losses, vjust =-0.5))
+
+  print(art)
+  p = p+1
+    
+}
+
+#3. Goals
+p=0
+for (i in Unique_Teams){
+  art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_Goals=sum(goals
+)) %>% 
+  ggplot(aes(x=season, y=Total_Goals)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Goals", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=10)) + geom_text(mapping = aes(label=Total_Goals, vjust =-0.5))
+  print(art)
+  p = p+1
+    
+  }
+
+#4. total_yel_cardtotal_yel_card
+
+p=0
+for (i in Unique_Teams){
+   art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_YellowCards=sum(total_yel_card
+)) %>% 
+  ggplot(aes(x=season, y=Total_YellowCards)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Yellow Cards", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=10)) + geom_text(mapping = aes(label=total_yel_card, vjust =-0.5))
+  print(art)
+  p = p+1
+    
+  }
+
+
+#5.total_red_card
+p=0
+for (i in Unique_Teams){
+  art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_Losses=sum(losses
+)) %>% 
+  ggplot(aes(x=season, y=Total_Losses)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Losses", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=10)) + geom_text(mapping = aes(label=Total_Losses, vjust =-0.5))
+  print(art)
+  p = p+1
+    
+}
+
+
+#6. total_scoring_attempts/att
+
+p=0
+for (i in Unique_Teams){
+   art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_Losses=sum(losses
+)) %>% 
+  ggplot(aes(x=season, y=Total_Losses)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Losses", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=10)) + geom_text(mapping = aes(label=Total_Losses, vjust =-0.5))
+  print(art)
+  p = p+1
+    
+}
+
+#7. ontarget_scoring_att
+p=0
+for (i in Unique_Teams){
+   art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(OnTarget_Attempts=sum(ontarget_scoring_att
+)) %>% 
+  ggplot(aes(x=season, y=OnTarget_Attempts)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of On-Target Scoring Attempts", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=10)) + geom_text(mapping = aes(label=OnTarget_Attempts, vjust =-0.5))
+  print(art)
+  p = p+1
+    
+}
+
+#8.att_freekick_goal
+p=0
+for (i in Unique_Teams){
+   art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_FreekickGoals=sum(att_freekick_goal
+)) %>% 
+  ggplot(aes(x=season, y=Total_FreekickGoals)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Freekick Goals", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=10)) + geom_text(mapping = aes(label=Total_FreekickGoals, vjust =-0.5))
+  print(art)
+  p = p+1
+    
+}
+
+#9. att_pen_goal
+p=0
+for (i in Unique_Teams){
+   art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_PenaltyGoals=sum(att_pen_goal
+)) %>% 
+  ggplot(aes(x=season, y=Total_PenaltyGoals)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Penalty Goals", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=10)) + geom_text(mapping = aes(label=Total_PenaltyGoals, vjust =-0.5))
+
+  print(art)
+  p = p+1
+    
+}
+
+#10. att_obox_goal
+p=0
+for (i in Unique_Teams){
+   art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_Screamers=sum(att_obox_goal
+)) %>% 
+  ggplot(aes(x=season, y=Total_Screamers)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Screamers" )+ theme(axis.text.x = element_text(size=7)) + geom_text(mapping = aes(label=Total_Screamers, vjust =-0.5)) +labs(tags = i) + theme(plot.tag= element_text( size=10,color="Black"))
+
+  print(art)
+  p = p+1
+    
+}
+
+#11. att_ibox_goal
+p=0
+for (i in Unique_Teams){
+   art<-Stats_Data %>% filter( team == i) %>%rename(i=team)%>% group_by(season) %>% summarise(Total_Inside_TheBox_Goals=sum(att_ibox_goal
+)) %>% 
+  ggplot(aes(x=season, y=Total_Inside_TheBox_Goals)) + geom_bar(stat= "identity")+ labs(x="Season", y= "Num of Goals from D-Box", title= i )+ theme(plot.title = element_text(size=10))+ theme_minimal()+ theme(axis.text.x = element_text(size=7))+ theme(plot.title= element_text(size=10)) + geom_text(mapping = aes(label=Total_Inside_TheBox_Goals, vjust =-0.5))
+  print(art)
+  p = p+1
+    
+}
+
+
+
+head(Stats_Data)
+```
+
+```{r}
+
+names<- c("a","b","c","d")
+age<-c(10,10,27,20)
+gender<-c("M", "F","M","F")
+fac_Gender<-factor(gender)
+
+datdd <- data.frame(names, age, fac_Gender)
+
+
+datdd %>% group-by(age)
+reorder(fac_Gender,age)
+reorder(fac_Gender,age )
+
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
